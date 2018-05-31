@@ -19,14 +19,17 @@ Histogram::Histogram(const int res)
 Histogram::~Histogram() {
 }
 
-double Histogram::get_bin(int x, int y) const {
+double Histogram::get_bin(int x, int y) {
+  wrapIndex(x, y);
   return bin[x][y];
 }
-double Histogram::get_age(int x, int y) const {
+double Histogram::get_age(int x, int y) {
+  wrapIndex(x, y);
   return age[x][y];
 }
 
-double Histogram::get_dist(int x, int y) const {
+double Histogram::get_dist(int x, int y) {
+  wrapIndex(x, y);
   return dist[x][y];
 }
 
@@ -114,5 +117,20 @@ void Histogram::setZero() {
       age[i][j] = 0.0;
       dist[i][j] = 0.0;
     }
+  }
+}
+
+void Histogram::wrapIndex(int &x, int &y){
+  while(x<0){
+	  x += e_dim;
+  }
+  while(x>e_dim-1){
+	  x -= e_dim;
+  }
+  while(y<0){
+	  y += z_dim;
+  }
+  while(y>z_dim-1){
+	  y -= z_dim;
   }
 }
