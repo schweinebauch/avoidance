@@ -206,6 +206,7 @@ class LocalPlanner
   double pointcloud_timeout_land_;
   double local_planner_mode_;
   double starting_height_ = 0.0;
+  ros::Time update_time_;
 
   geometry_msgs::PoseStamped take_off_pose_;
 
