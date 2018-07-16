@@ -15,7 +15,8 @@ void StarPlanner::dynamicReconfigureSetStarParams(
 
 void StarPlanner::setParams(double min_cloud_size, double min_dist_backoff,
                             nav_msgs::GridCells path_waypoints, double curr_yaw,
-                            bool use_ground_detection, double min_realsense_dist) {
+                            bool use_ground_detection,
+                            double min_realsense_dist) {
   path_waypoints_ = path_waypoints;
   curr_yaw_ = curr_yaw;
   use_ground_detection_ = use_ground_detection;
@@ -302,6 +303,6 @@ void StarPlanner::buildLookAheadTree() {
   path_node_origins_.push_back(0);
   tree_age_ = 0;
 
-  ROS_INFO("Tree calculated in %2.2fms.",
+  ROS_INFO("\033[0;35m[SP]Tree calculated in %2.2fms.\033[0m",
            (std::clock() - start_time) / (double)(CLOCKS_PER_SEC / 1000));
 }
