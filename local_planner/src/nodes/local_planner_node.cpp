@@ -693,7 +693,7 @@ void LocalPlannerNode::pointCloudCallback(const sensor_msgs::PointCloud2 msg) {
     } catch (tf::TransformException &ex) {
       ROS_ERROR(
           "Received an exception trying to transform a point from "
-          "\"camera_optical_frame\" to \"local_origin\": %s",
+          "\"front_camera_optical_frame\" to \"local_origin\": %s",
           ex.what());
     }
     write_cloud_ = false;
