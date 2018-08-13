@@ -232,7 +232,7 @@ class LocalPlanner {
   geometry_msgs::PoseStamped take_off_pose_;
   geometry_msgs::PoseStamped offboard_pose_;
   sensor_msgs::LaserScan distance_data_ = {};
-  pcl::PointCloud<pcl::PointXYZ> complete_cloud_;
+  std::vector<pcl::PointCloud<pcl::PointXYZ>> complete_cloud_;
   std::vector<float> algorithm_total_time_;
 
   LocalPlanner();

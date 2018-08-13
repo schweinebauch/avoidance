@@ -10,8 +10,12 @@ LocalPlannerNode::LocalPlannerNode() {
   f = boost::bind(&LocalPlannerNode::dynamicReconfigureCallback, this, _1, _2);
   server_.setCallback(f);
 
-  pointcloud_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(
-      depth_points_topic_, 1, &LocalPlannerNode::pointCloudCallback, this);
+  pointcloud_front_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(
+      depth_points_topic_front_, 1, boost::bind(&LocalPlannerNode::pointCloudCallback, this, _1, 0));
+  pointcloud_left_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(
+      depth_points_topic_left_, 1, boost::bind(&LocalPlannerNode::pointCloudCallback, this, _1, 1));
+  pointcloud_right_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(
+      depth_points_topic_right_, 1, boost::bind(&LocalPlannerNode::pointCloudCallback, this, _1, 2));
   pose_sub_ = nh_.subscribe<geometry_msgs::PoseStamped>(
       "/mavros/local_position/pose", 1, &LocalPlannerNode::positionCallback,
       this);
@@ -98,8 +102,12 @@ void LocalPlannerNode::readParams() {
   nh_.param<double>("goal_x_param", local_planner_.goal_x_param_, 9.0);
   nh_.param<double>("goal_y_param", local_planner_.goal_y_param_, 13.0);
   nh_.param<double>("goal_z_param", local_planner_.goal_z_param_, 3.5);
-  nh_.param<std::string>("depth_points_topic", depth_points_topic_,
-                         "/camera/depth/points");
+  nh_.param<std::string>("depth_points_topic_front", depth_points_topic_front_,
+                         "/camera_front/depth/points");
+  nh_.param<std::string>("depth_points_topic_left", depth_points_topic_left_,
+                           "/camera_left/depth/points");
+  nh_.param<std::string>("depth_points_topic_right", depth_points_topic_right_,
+                           "/camera_right/depth/points");
   goal_msg_.pose.position.x = local_planner_.goal_x_param_;
   goal_msg_.pose.position.y = local_planner_.goal_y_param_;
   goal_msg_.pose.position.z = local_planner_.goal_z_param_;
@@ -678,27 +686,48 @@ void LocalPlannerNode::printPointInfo(double x, double y, double z) {
   printf("-------------------------------------------- \n");
 }
 
-void LocalPlannerNode::pointCloudCallback(const sensor_msgs::PointCloud2 msg) {
+void LocalPlannerNode::pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg, int index) {
+  available_clouds_[index] = true;
+
+  std::cout<<"Available clouds: ";
+  for(int i=0; i<available_clouds_.size(); ++i){
+    std::cout << available_clouds_[i] << ' ';
+  }
+  std::cout<<"\n";
+
   if (write_cloud_) {
     pcl::PointCloud<pcl::PointXYZ> complete_cloud;
     sensor_msgs::PointCloud2 pc2cloud_world;
     try {
-      tf_listener_.waitForTransform("/local_origin", msg.header.frame_id,
-                                    msg.header.stamp, ros::Duration(3.0));
+      tf_listener_.waitForTransform("/local_origin", msg->header.frame_id,
+                                    msg->header.stamp, ros::Duration(3.0));
       tf::StampedTransform transform;
-      tf_listener_.lookupTransform("/local_origin", msg.header.frame_id,
-                                   msg.header.stamp, transform);
-      pcl_ros::transformPointCloud("/local_origin", transform, msg, pc2cloud_world);
+      tf_listener_.lookupTransform("/local_origin", msg->header.frame_id,
+                                   msg->header.stamp, transform);
+      pcl_ros::transformPointCloud("/local_origin", transform, *msg, pc2cloud_world);
       pcl::fromROSMsg(pc2cloud_world, complete_cloud);
-      local_planner_.complete_cloud_ = complete_cloud;
-      point_cloud_updated_ = true;
+      local_planner_.complete_cloud_.push_back(std::move(complete_cloud));
+      received_clouds_[index] = true;
+
+      std::cout<<"received clouds: ";
+      for(int i=0; i<received_clouds_.size(); ++i){
+        std::cout << received_clouds_[i] << ' ';
+      }
+      std::cout<<"\n";
+
     } catch (tf::TransformException &ex) {
       ROS_ERROR(
           "Received an exception trying to transform a point from "
-          "\"front_camera_optical_frame\" to \"local_origin\": %s",
+          "\"camera_optical_frame\" to \"local_origin\": %s",
           ex.what());
     }
-    write_cloud_ = false;
+    if(received_clouds_ == available_clouds_){
+    	std::fill(received_clouds_.begin(), received_clouds_.end(), false);
+    	write_cloud_ = false;
+    	if(local_planner_.complete_cloud_.size()>0){
+    		point_cloud_updated_ = true;
+    	}
+    }
   }
 }
 
@@ -920,6 +949,7 @@ int main(int argc, char **argv) {
   std::unique_lock<std::timed_mutex> lock(NodePtr->variable_mutex_,
                                           std::defer_lock);
 
+  std::cout<<"Starting to spin\n";
   // spin node, execute callbacks
   while (ros::ok()) {
     std::clock_t t_loop1 = std::clock();
@@ -927,6 +957,7 @@ int main(int argc, char **argv) {
 
     // If planner is not running, update planner info and get last results
     if (lock.try_lock_for(std::chrono::milliseconds(20))) {
+      NodePtr->local_planner_.complete_cloud_.clear();
       NodePtr->write_cloud_ = true;
       ros::spinOnce();
       NodePtr->updatePlannerInfo();
