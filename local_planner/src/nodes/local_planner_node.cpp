@@ -10,7 +10,7 @@ LocalPlannerNode::LocalPlannerNode() {
   f = boost::bind(&LocalPlannerNode::dynamicReconfigureCallback, this, _1, _2);
   server_.setCallback(f);
 
-  pointcloud_sub_ = nh_.subscribe<sensor_msgs::PointCloud2>(
+  pointcloud_sub_ = nh_.subscribe<const sensor_msgs::PointCloud2&>(
       depth_points_topic_, 1, &LocalPlannerNode::pointCloudCallback, this);
   pose_sub_ = nh_.subscribe<geometry_msgs::PoseStamped>(
       "/mavros/local_position/pose", 1, &LocalPlannerNode::positionCallback,
@@ -678,9 +678,8 @@ void LocalPlannerNode::printPointInfo(double x, double y, double z) {
   printf("-------------------------------------------- \n");
 }
 
-void LocalPlannerNode::pointCloudCallback(const sensor_msgs::PointCloud2 msg) {
+void LocalPlannerNode::pointCloudCallback(const sensor_msgs::PointCloud2& msg) {
   if (write_cloud_) {
-    pcl::PointCloud<pcl::PointXYZ> complete_cloud;
     sensor_msgs::PointCloud2 pc2cloud_world;
     try {
       tf_listener_.waitForTransform("/local_origin", msg.header.frame_id,
@@ -689,8 +688,7 @@ void LocalPlannerNode::pointCloudCallback(const sensor_msgs::PointCloud2 msg) {
       tf_listener_.lookupTransform("/local_origin", msg.header.frame_id,
                                    msg.header.stamp, transform);
       pcl_ros::transformPointCloud("/local_origin", transform, msg, pc2cloud_world);
-      pcl::fromROSMsg(pc2cloud_world, complete_cloud);
-      local_planner_.complete_cloud_ = complete_cloud;
+      pcl::fromROSMsg(pc2cloud_world, local_planner_.complete_cloud_);
       point_cloud_updated_ = true;
     } catch (tf::TransformException &ex) {
       ROS_ERROR(
@@ -900,6 +898,8 @@ void LocalPlannerNode::threadFunction() {
       std_msgs::String msg;
       msg.data = local_planner_.log_name_;
       log_name_pub_.publish(msg);
+    }else{
+      ros::Duration(0.2).sleep();
     }
   }
 }
