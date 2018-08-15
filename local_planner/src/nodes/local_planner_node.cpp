@@ -929,6 +929,9 @@ int main(int argc, char **argv) {
       Node.updatePlannerInfo();
       Node.local_planner_.getAvoidanceOutput(planner_output);
       Node.wp_generator_.setPlannerInfo(planner_output);
+      if(Node.local_planner_.stop_in_front_active_){
+    	  Node.local_planner_.getGoalPosition(Node.goal_msg_.pose.position);
+      }
       lock.unlock();
     } else {
       ros::spinOnce();
