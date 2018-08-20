@@ -61,9 +61,7 @@ class WaypointGenerator {
   geometry_msgs::PoseStamped last_position_waypoint_;
   Eigen::Vector2f last_vel_waypt_xy_;
 
-  ros::Time velocity_time_;
   std::vector<int> z_FOV_idx_;
-  ros::Time last_t_smooth_;
 
   void calculateWaypoint();
   void updateState();

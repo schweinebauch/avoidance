@@ -247,10 +247,8 @@ void WaypointGenerator::reachGoalAltitudeFirst() {
 // smooth trajectory by liming the maximim accelleration possible
 void WaypointGenerator::smoothWaypoint() {
 
-  ros::Time time = ros::Time::now();
-  ros::Duration time_diff = time - last_t_smooth_;
+  ros::Duration time_diff = ros::Time::now() - last_position_waypoint_.header.stamp;
   double dt = time_diff.toSec() > 0.0 ? time_diff.toSec() : 0.004;
-  last_t_smooth_ = time;
 
   // TODO: take into account the current velocity?
   // (this is desireable in case the vehicle does not track the velocity
@@ -258,14 +256,11 @@ void WaypointGenerator::smoothWaypoint() {
   //Eigen::Vector2f cur_vel_xy(curr_vel_.twist.linear.x, curr_vel_.twist.linear.y);
 
   Eigen::Vector2f vel_waypt_xy(
-		  // TODO: why not use output_.position_waypoint (what's the difference between these?)?
-		  // and why is last_position_waypoint_ used below instead of the last
-		  // goto?
       (output_.adapted_goto_position.x - last_position_waypoint_.pose.position.x) / dt,
       (output_.adapted_goto_position.y - last_position_waypoint_.pose.position.y) / dt);
   Eigen::Vector2f acc_waypt_xy((vel_waypt_xy - last_vel_waypt_xy_) / dt);
 
-  const float max_acceleration = 1.f; // TODO: should be configurable
+  const float max_acceleration = 10.f; // TODO: should be configurable
   if (acc_waypt_xy.squaredNorm() > max_acceleration * max_acceleration) {
     vel_waypt_xy = max_acceleration * dt * acc_waypt_xy.normalized() + last_vel_waypt_xy_;
   }
@@ -280,7 +275,7 @@ void WaypointGenerator::smoothWaypoint() {
 }
 
 void WaypointGenerator::adaptSpeed() {
-  ros::Duration since_last_velocity = ros::Time::now() - velocity_time_;
+  ros::Duration since_last_velocity = ros::Time::now() - pose_.header.stamp;
   double since_last_velocity_sec = since_last_velocity.toSec();
 
   if (!planner_info_.obstacle_ahead) {
@@ -328,7 +323,6 @@ void WaypointGenerator::adaptSpeed() {
       }
     }
   }
-  velocity_time_ = ros::Time::now();
 
   // calculate correction for computation delay
   ros::Duration since_update = ros::Time::now() - update_time_;
@@ -356,11 +350,6 @@ void WaypointGenerator::adaptSpeed() {
 // create the message that is sent to the UAV
 void WaypointGenerator::getPathMsg() {
   output_.path.header.frame_id = "/world";
-  // FIXME: last_position_waypoint_ & last_yaw_ are set twice inside getPathMsg()
-  //-----------------------------
-  last_position_waypoint_ = output_.position_waypoint;
-  last_yaw_ = curr_yaw_;
-  //-----------------------------
   output_.adapted_goto_position = output_.goto_position;
 
   // If avoid sphere is used, project waypoint on sphere
@@ -391,11 +380,8 @@ void WaypointGenerator::getPathMsg() {
     ROS_DEBUG("[WG] pose altitude func: [%f %f %f].", pose_.pose.position.x,
               pose_.pose.position.y, pose_.pose.position.z);
   } else {
-    if (!only_yawed_ && !reached_goal_) {
-      smoothWaypoint();
-      new_yaw_ = nextYaw(pose_, output_.smoothed_goto_position);
-      ;
-    }
+    smoothWaypoint();
+//    new_yaw_ = nextYaw(pose_, output_.smoothed_goto_position);
   }
 
   // change waypoint if drone is at goal or above
@@ -435,12 +421,8 @@ void WaypointGenerator::getPathMsg() {
   transformPositionToVelocityWaypoint();
 
   output_.path.poses.push_back(output_.position_waypoint);
-  curr_yaw_ = new_yaw_; // curr_yaw_: is it setpoint or current pose? (new_yaw_ ist set via nextYaw() which creates a setpoint) 
-  // and at another place curr_yaw_ is set as 'curr_yaw_ = tf::getYaw(pose_.pose.orientation);'
-  //-----------------------------
   last_position_waypoint_ = output_.position_waypoint;
   last_yaw_ = curr_yaw_;
-  //-----------------------------
 }
 
 void WaypointGenerator::getWaypoints(waypointResult &output) {
