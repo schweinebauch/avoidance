@@ -57,13 +57,13 @@ class WaypointGenerator {
   double speed_ = 1.0;
   int e_FOV_max_, e_FOV_min_;
 
+  Eigen::Vector2f last_vel_waypt_xy_;
   geometry_msgs::Point hover_position_;
   geometry_msgs::PoseStamped last_position_waypoint_;
   geometry_msgs::PoseStamped last_last_position_waypoint_;
 
   ros::Time velocity_time_;
   std::vector<int> z_FOV_idx_;
-  ros::Time last_t_smooth_;
 
   void calculateWaypoint();
   void updateState();

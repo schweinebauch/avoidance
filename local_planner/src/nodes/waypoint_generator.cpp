@@ -246,31 +246,23 @@ void WaypointGenerator::reachGoalAltitudeFirst() {
 
 // smooth trajectory by liming the maximim accelleration possible
 void WaypointGenerator::smoothWaypoint() {
-  ros::Time time = ros::Time::now();
-  ros::Duration time_diff = time - last_t_smooth_;
-  double dt = time_diff.toSec() > 0.0 ? time_diff.toSec() : 0.004;
-  last_t_smooth_ = time;
 
-  Eigen::Vector2f vel_xy(curr_vel_.twist.linear.x, curr_vel_.twist.linear.y);
+  ros::Duration time_diff = ros::Time::now() - last_position_waypoint_.header.stamp;
+  double dt = time_diff.toSec() > 0.0 ? time_diff.toSec() : 0.004;
+
   Eigen::Vector2f vel_waypt_xy(
       (output_.adapted_goto_position.x - last_position_waypoint_.pose.position.x) / dt,
       (output_.adapted_goto_position.y - last_position_waypoint_.pose.position.y) / dt);
-  Eigen::Vector2f vel_waypt_xy_prev(
-      (last_position_waypoint_.pose.position.x -
-       last_last_position_waypoint_.pose.position.x) /
-          dt,
-      (last_position_waypoint_.pose.position.y -
-       last_last_position_waypoint_.pose.position.y) /
-          dt);
-  Eigen::Vector2f acc_waypt_xy((vel_waypt_xy - vel_waypt_xy_prev) / dt);
+  Eigen::Vector2f acc_waypt_xy((vel_waypt_xy - last_vel_waypt_xy_) / dt);
 
-  if (acc_waypt_xy.norm() > (acc_waypt_xy.norm() / 2.0f)) {
-    vel_xy = (acc_waypt_xy.norm() / 2.0f) * acc_waypt_xy.normalized() * dt +
-             vel_waypt_xy_prev;
+  const float max_acceleration = 5.f; // TODO: should be configurable
+  if (acc_waypt_xy.squaredNorm() > max_acceleration * max_acceleration) {
+	  vel_waypt_xy = max_acceleration * dt * acc_waypt_xy.normalized() + last_vel_waypt_xy_;
   }
+  last_vel_waypt_xy_ = vel_waypt_xy;
 
-  output_.smoothed_goto_position.x = last_position_waypoint_.pose.position.x + vel_xy(0) * dt;
-  output_.smoothed_goto_position.y = last_position_waypoint_.pose.position.y + vel_xy(1) * dt;
+  output_.smoothed_goto_position.x = last_position_waypoint_.pose.position.x + vel_waypt_xy(0) * dt;
+  output_.smoothed_goto_position.y = last_position_waypoint_.pose.position.y + vel_waypt_xy(1) * dt;
   output_.smoothed_goto_position.z = output_.adapted_goto_position.z;
 
   ROS_DEBUG("[WG] Smoothed waypoint: [%f %f %f].", output_.smoothed_goto_position.x,
@@ -354,9 +346,6 @@ void WaypointGenerator::adaptSpeed() {
 // create the message that is sent to the UAV
 void WaypointGenerator::getPathMsg() {
   output_.path.header.frame_id = "/world";
-  last_last_position_waypoint_ = last_position_waypoint_;
-  last_position_waypoint_ = output_.position_waypoint;
-  last_yaw_ = curr_yaw_;
   output_.adapted_goto_position = output_.goto_position;
 
   // If avoid sphere is used, project waypoint on sphere
@@ -387,11 +376,8 @@ void WaypointGenerator::getPathMsg() {
     ROS_DEBUG("[WG] pose altitude func: [%f %f %f].", pose_.pose.position.x,
               pose_.pose.position.y, pose_.pose.position.z);
   } else {
-    if (!only_yawed_ && !reached_goal_) {
-      smoothWaypoint();
-      new_yaw_ = nextYaw(pose_, output_.smoothed_goto_position);
-      ;
-    }
+    smoothWaypoint();
+//    new_yaw_ = nextYaw(pose_, output_.smoothed_goto_position);
   }
 
   // change waypoint if drone is at goal or above
@@ -431,8 +417,6 @@ void WaypointGenerator::getPathMsg() {
   transformPositionToVelocityWaypoint();
 
   output_.path.poses.push_back(output_.position_waypoint);
-  curr_yaw_ = new_yaw_;
-  last_last_position_waypoint_ = last_position_waypoint_;
   last_position_waypoint_ = output_.position_waypoint;
   last_yaw_ = curr_yaw_;
 }
