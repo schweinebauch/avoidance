@@ -280,7 +280,6 @@ void WaypointGenerator::smoothWaypoint() {
 //    vel_waypt_xy = max_acceleration_ * dt * acc_waypt_xy.normalized() + last_vel_waypt_xy_;
 //  }
 
-  std::cout<<"max acc: "<<max_acceleration_<<" low-pass "<<low_pass_param_<<"\n";
   last_vel_waypt_xy = vel_waypt_xy * low_pass_param_ + last_vel_waypt_xy * (1.f - low_pass_param_);
 
   output_.smoothed_goto_position.x = last_position_waypoint_.pose.position.x + vel_waypt_xy(0) * dt;
