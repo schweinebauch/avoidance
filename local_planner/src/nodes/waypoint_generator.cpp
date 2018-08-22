@@ -266,22 +266,22 @@ void WaypointGenerator::smoothWaypoint() {
         (last_position_waypoint_.pose.position.y - last_last_position_waypoint_.pose.position.y) / last_dt);
   Eigen::Vector2f acc_waypt_xy((vel_waypt_xy - last_vel_waypt_xy) / dt);
 
-  const float max_acceleration = 10.f; // TODO: should be configurable
   // limit acceleration only into the direction of vel_waypt_xy
   float cur_vel_xy_norm = vel_waypt_xy.norm();
   if (cur_vel_xy_norm > 0.001) {
     Eigen::Vector2f cur_vel_xy_normalized = vel_waypt_xy / cur_vel_xy_norm;
     Eigen::Vector2f acc_vel_dir = cur_vel_xy_normalized * acc_waypt_xy.dot(cur_vel_xy_normalized);
     Eigen::Vector2f acc_perpendicular = acc_waypt_xy - acc_vel_dir;
-    if (acc_vel_dir.squaredNorm() > max_acceleration * max_acceleration && max_acceleration > 0.001f) {
-      vel_waypt_xy = dt * (max_acceleration * acc_vel_dir.normalized() + acc_perpendicular) + last_vel_waypt_xy;
+    if (acc_vel_dir.squaredNorm() > max_acceleration_ * max_acceleration_ && max_acceleration_ > 0.001f) {
+      vel_waypt_xy = dt * (max_acceleration_ * acc_vel_dir.normalized() + acc_perpendicular) + last_vel_waypt_xy;
     }
   }
-//  if (acc_waypt_xy.squaredNorm() > max_acceleration * max_acceleration && max_acceleration > 0.001f) {
-//    vel_waypt_xy = max_acceleration * dt * acc_waypt_xy.normalized() + last_vel_waypt_xy_;
+//  if (acc_waypt_xy.squaredNorm() > max_acceleration_ * max_acceleration_ && max_acceleration_ > 0.001f) {
+//    vel_waypt_xy = max_acceleration_ * dt * acc_waypt_xy.normalized() + last_vel_waypt_xy_;
 //  }
-  float alpha = 0.4f; // TODO: configurable
-  last_vel_waypt_xy = vel_waypt_xy * alpha + last_vel_waypt_xy * (1.f - alpha);
+
+  std::cout<<"max acc: "<<max_acceleration_<<" low-pass "<<low_pass_param_<<"\n";
+  last_vel_waypt_xy = vel_waypt_xy * low_pass_param_ + last_vel_waypt_xy * (1.f - low_pass_param_);
 
   output_.smoothed_goto_position.x = last_position_waypoint_.pose.position.x + vel_waypt_xy(0) * dt;
   output_.smoothed_goto_position.y = last_position_waypoint_.pose.position.y + vel_waypt_xy(1) * dt;

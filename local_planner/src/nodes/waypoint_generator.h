@@ -76,6 +76,9 @@ class WaypointGenerator {
   void getPathMsg();
 
  public:
+
+  double max_acceleration_;
+  double low_pass_param_;
   void getWaypoints(waypointResult &output);
   void setPlannerInfo(avoidanceOutput input);
   void updateState(geometry_msgs::PoseStamped act_pose,
