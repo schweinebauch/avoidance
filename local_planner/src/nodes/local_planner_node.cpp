@@ -878,6 +878,8 @@ void LocalPlannerNode::dynamicReconfigureCallback(
     avoidance::LocalPlannerNodeConfig &config, uint32_t level) {
   std::lock_guard<std::mutex> guard(running_mutex_);
   local_planner_.dynamicReconfigureSetParams(config, level);
+  wp_generator_.low_pass_param_ = config.low_pass_param_;
+  wp_generator_.max_acceleration_= config.max_acceleration_;
 }
 
 void LocalPlannerNode::threadFunction() {
