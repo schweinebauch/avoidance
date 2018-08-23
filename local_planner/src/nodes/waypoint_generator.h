@@ -59,7 +59,6 @@ class WaypointGenerator {
 
   geometry_msgs::Point hover_position_;
   geometry_msgs::PoseStamped last_position_waypoint_;
-  geometry_msgs::PoseStamped last_last_position_waypoint_;
   Eigen::Vector2f last_velocity_{0.f, 0.f}; ///< last vehicle's velocity
 
   ros::Time velocity_time_;

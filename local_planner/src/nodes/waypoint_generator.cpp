@@ -248,42 +248,14 @@ void WaypointGenerator::reachGoalAltitudeFirst() {
 void WaypointGenerator::smoothWaypoint() {
 
   ros::Duration time_diff = ros::Time::now() - last_position_waypoint_.header.stamp;
-  ros::Duration last_time_diff = last_position_waypoint_.header.stamp - last_last_position_waypoint_.header.stamp;
   double dt = time_diff.toSec() > 0.0 ? time_diff.toSec() : 0.004;
-  double last_dt = last_time_diff.toSec() > 0.0 ? last_time_diff.toSec() : 0.004;
 
-
-  // TODO: take into account the current velocity?
-  // (this is desireable in case the vehicle does not track the velocity
-  // setpoint immediately and there's a fast setpoint change)
   Eigen::Vector2f cur_vel_xy(curr_vel_.twist.linear.x, curr_vel_.twist.linear.y);
-
   Eigen::Vector2f vel_waypt_xy(
       (output_.adapted_goto_position.x - last_position_waypoint_.pose.position.x) / dt,
       (output_.adapted_goto_position.y - last_position_waypoint_.pose.position.y) / dt);
-  Eigen::Vector2f last_vel_waypt_xy(
-        (last_position_waypoint_.pose.position.x - last_last_position_waypoint_.pose.position.x) / last_dt,
-        (last_position_waypoint_.pose.position.y - last_last_position_waypoint_.pose.position.y) / last_dt);
-  Eigen::Vector2f acc_waypt_xy((vel_waypt_xy - last_vel_waypt_xy) / dt);
 
-  // limit acceleration only into the direction of vel_waypt_xy
-  float cur_vel_xy_norm = vel_waypt_xy.norm();
-  if (cur_vel_xy_norm > 0.001) {
-    Eigen::Vector2f cur_vel_xy_normalized = vel_waypt_xy / cur_vel_xy_norm;
-    Eigen::Vector2f acc_vel_dir = cur_vel_xy_normalized * acc_waypt_xy.dot(cur_vel_xy_normalized);
-    Eigen::Vector2f acc_perpendicular = acc_waypt_xy - acc_vel_dir;
-    if (acc_vel_dir.squaredNorm() > max_acceleration_ * max_acceleration_ && max_acceleration_ > 0.001f) {
-      vel_waypt_xy = dt * (max_acceleration_ * acc_vel_dir.normalized() + acc_perpendicular) + last_vel_waypt_xy;
-    }
-  }
-//  if (acc_waypt_xy.squaredNorm() > max_acceleration_ * max_acceleration_ && max_acceleration_ > 0.001f) {
-//    vel_waypt_xy = max_acceleration_ * dt * acc_waypt_xy.normalized() + last_vel_waypt_xy_;
-//  }
-
-  last_vel_waypt_xy = vel_waypt_xy * low_pass_param_ + last_vel_waypt_xy * (1.f - low_pass_param_);
-
-
-  Eigen::Vector2f v_sp = last_vel_waypt_xy;
+  Eigen::Vector2f v_sp = vel_waypt_xy;
   Eigen::Vector2f v = cur_vel_xy;
   Eigen::Vector2f acc_sp = (v_sp-v)/dt;
   Eigen::Vector2f acc = (v-last_velocity_)/dt;
@@ -457,7 +429,6 @@ void WaypointGenerator::getPathMsg() {
   transformPositionToVelocityWaypoint();
 
   output_.path.poses.push_back(output_.position_waypoint);
-  last_last_position_waypoint_ = last_position_waypoint_;
   last_position_waypoint_ = output_.position_waypoint;
   last_yaw_ = curr_yaw_;
   last_velocity_ = Eigen::Vector2f(curr_vel_.twist.linear.x, curr_vel_.twist.linear.y);
