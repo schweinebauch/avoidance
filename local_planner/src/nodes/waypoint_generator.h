@@ -60,6 +60,7 @@ class WaypointGenerator {
   geometry_msgs::Point hover_position_;
   geometry_msgs::PoseStamped last_position_waypoint_;
   geometry_msgs::PoseStamped last_last_position_waypoint_;
+  Eigen::Vector2f last_velocity_{0.f, 0.f}; ///< last vehicle's velocity
 
   ros::Time velocity_time_;
   std::vector<int> z_FOV_idx_;
@@ -77,8 +78,10 @@ class WaypointGenerator {
 
  public:
 
-  double max_acceleration_;
-  double low_pass_param_;
+  double max_acceleration_ = 0.f;
+  double low_pass_param_ = 1.f;
+  double max_jerk_limit_param_ = 500.f;
+  double min_jerk_limit_param_ = 200.f;
   void getWaypoints(waypointResult &output);
   void setPlannerInfo(avoidanceOutput input);
   void updateState(geometry_msgs::PoseStamped act_pose,

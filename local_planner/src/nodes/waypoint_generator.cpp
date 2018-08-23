@@ -282,8 +282,27 @@ void WaypointGenerator::smoothWaypoint() {
 
   last_vel_waypt_xy = vel_waypt_xy * low_pass_param_ + last_vel_waypt_xy * (1.f - low_pass_param_);
 
-  output_.smoothed_goto_position.x = last_position_waypoint_.pose.position.x + vel_waypt_xy(0) * dt;
-  output_.smoothed_goto_position.y = last_position_waypoint_.pose.position.y + vel_waypt_xy(1) * dt;
+
+  Eigen::Vector2f v_sp = last_vel_waypt_xy;
+  Eigen::Vector2f v = cur_vel_xy;
+  Eigen::Vector2f acc_sp = (v_sp-v)/dt;
+  Eigen::Vector2f acc = (v-last_velocity_)/dt;
+  Eigen::Vector2f jerk_sp = (acc_sp-acc)/dt;
+  float max_jerk = max_jerk_limit_param_; // 400: too low (flies into tree), 1200: effect is minimal but still visible
+
+  // velocity-dependent max jerk
+  if (min_jerk_limit_param_ > 0.001f) {
+    max_jerk *= v.norm();
+    if (max_jerk < min_jerk_limit_param_) max_jerk = min_jerk_limit_param_;
+  }
+
+  if (jerk_sp.squaredNorm() > max_jerk * max_jerk && max_jerk > 0.001f) {
+    jerk_sp = max_jerk * jerk_sp.normalized();
+    v_sp = (jerk_sp * dt + acc) * dt + v;
+  }
+
+  output_.smoothed_goto_position.x = last_position_waypoint_.pose.position.x + v_sp(0) * dt;
+  output_.smoothed_goto_position.y = last_position_waypoint_.pose.position.y + v_sp(1) * dt;
   output_.smoothed_goto_position.z = output_.adapted_goto_position.z;
 
   ROS_DEBUG("[WG] Smoothed waypoint: [%f %f %f].", output_.smoothed_goto_position.x,
@@ -441,6 +460,7 @@ void WaypointGenerator::getPathMsg() {
   last_last_position_waypoint_ = last_position_waypoint_;
   last_position_waypoint_ = output_.position_waypoint;
   last_yaw_ = curr_yaw_;
+  last_velocity_ = Eigen::Vector2f(curr_vel_.twist.linear.x, curr_vel_.twist.linear.y);
 }
 
 void WaypointGenerator::getWaypoints(waypointResult &output) {
