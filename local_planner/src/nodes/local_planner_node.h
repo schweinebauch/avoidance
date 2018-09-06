@@ -50,13 +50,16 @@ class LocalPlannerNode {
 
   double curr_yaw_;
 
+  std::vector<bool> available_clouds_ {false, false, false};
+  std::vector<bool> received_clouds_ {false, false, false};
+
   ros::CallbackQueue pointcloud_queue_;
   ros::CallbackQueue main_queue_;
 
   std::vector<geometry_msgs::Point> path_node_positions_;
   geometry_msgs::PoseStamped hover_point_;
   geometry_msgs::PoseStamped newest_pose_;
-  sensor_msgs::PointCloud2 newest_point_cloud_;
+  std::vector<sensor_msgs::PointCloud2> newest_cloud_msgs_;
   geometry_msgs::PoseStamped goal_msg_;
 
   const ros::Duration pointcloud_timeout_hover_ = ros::Duration(0.4);
@@ -110,7 +113,9 @@ class LocalPlannerNode {
   bool use_sphere_;
 
   // Subscribers
-  ros::Subscriber pointcloud_sub_;
+  ros::Subscriber pointcloud_front_sub_;
+  ros::Subscriber pointcloud_left_sub_;
+  ros::Subscriber pointcloud_right_sub_;
   ros::Subscriber pose_sub_;
   ros::Subscriber velocity_sub_;
   ros::Subscriber state_sub_;
@@ -152,14 +157,16 @@ class LocalPlannerNode {
   geometry_msgs::TwistStamped vel_msg_;
   bool armed_, offboard_, mission_, new_goal_;
 
-  std::string depth_points_topic_;
+  std::string depth_points_topic_front_;
+  std::string depth_points_topic_left_;
+  std::string depth_points_topic_right_;
 
   dynamic_reconfigure::Server<avoidance::LocalPlannerNodeConfig> server_;
 
   void dynamicReconfigureCallback(avoidance::LocalPlannerNodeConfig &config,
                                   uint32_t level);
   void positionCallback(const geometry_msgs::PoseStamped& msg);
-  void pointCloudCallback(const sensor_msgs::PointCloud2& msg);
+  void pointCloudCallback(const sensor_msgs::PointCloud2::ConstPtr& msg, int index);
   void velocityCallback(const geometry_msgs::TwistStamped& msg);
   void stateCallback(const mavros_msgs::State& msg);
   void readParams();
